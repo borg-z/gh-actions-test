@@ -25,21 +25,24 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo
             });
-            const release = releases.data.find(r => r.tag_name === version || r.name.includes(version));
-            if (release) {
-              console.log(`Found release ${version} with ID: ${release.id}`);
-              try {
-                await github.rest.repos.deleteRelease({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  release_id: releaseId
-                });
-                console.log(`Deleted release ${releaseId}`);
-              } catch (error) {
-                console.error(`Error deleting release ${releaseId}`, error);
+
+            const matchingReleases = releases.data.filter(r => r.tag_name === version || r.name.includes(version));
+            if (matchingReleases.length > 0) {
+              console.log(`Found ${matchingReleases.length} matching releases`);
+              for (const release of matchingReleases) {
+                try {
+                  await github.rest.repos.deleteRelease({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    release_id: release.id
+                  });
+                  console.log(`Deleted release ${release.id}`);
+                } catch (error) {
+                  console.error(`Error deleting release ${release.id}`, error);
+                }
               }
             } else {
-              console.error(`Could not find release ${version}`);
+              console.error(`Could not find any matching releases`);
               return null;
             }
 
