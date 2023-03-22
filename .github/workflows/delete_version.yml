@@ -1,0 +1,91 @@
+name: release:delete
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version number'
+        required: true
+
+jobs:
+  delete-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+
+
+      - name: Get release ID
+        id: get_release_id
+        uses: actions/github-script@9ac08808f993958e9de277fe43a64532a609130e
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const version = `${{ github.event.inputs.version }}`;
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            const release = releases.data.find(r => r.tag_name === version);
+            if (release) {
+              console.log(`Found release ${version} with ID: ${release.id}`);
+              console.log(release);
+              return release.id;
+            } else {
+              console.error(`Could not find release ${version}`);
+              return null;
+            }
+
+
+      - name: Delete release
+        if: steps.get_release_id.outputs.release_id != null
+        uses: actions/github-script@9ac08808f993958e9de277fe43a64532a609130e
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const releaseId = steps.get_release_id.outputs.release_id;
+            try {
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: releaseId
+              });
+              console.log(`Deleted release ${releaseId}`);
+            } catch (error) {
+              console.error(`Error deleting release ${releaseId}`, error);
+            }
+
+
+      - name: Delete Git tag
+        uses: actions/github-script@9ac08808f993958e9de277fe43a64532a609130e
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = `${{ github.event.inputs.version }}`;
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `tags/${tag}`
+              });
+              console.log(`Deleted Git tag: ${tag}`);
+            } catch (error) {
+              console.error(`Error deleting Git tag: ${tag}`, error);
+            }
+
+      - name: Delete Git branch
+        uses: actions/github-script@9ac08808f993958e9de277fe43a64532a609130e
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const branch = `release/${{ github.event.inputs.version }}`;
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branch}`
+              });
+              console.log(`Deleted Git branch: ${branch}`);
+            } catch (error) {
+              console.error(`Error deleting Git branch: ${branch}`, error);
+            }

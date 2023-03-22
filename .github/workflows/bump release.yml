@@ -1,0 +1,52 @@
+name: release:bump
+on:
+  workflow_dispatch:
+    inputs:
+      releaseType:
+        description: 'Release type (MAJOR, MINOR, PATCH)'
+        required: true
+        default: 'PATCH'
+      ref:
+        description: 'The branch, tag or SHA to checkout.'
+        required: true
+        default: 'main'
+jobs:
+  release:
+    name: Release
+    timeout-minutes: 10
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8  # v3.1.0
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+
+      - name: Create tag and branch
+        id: create_tag_branch
+        uses: actions/github-script@9ac08808f993958e9de277fe43a64532a609130e  # v6.0.0
+        with:
+          github-token: ${{ github.token }}
+          result-encoding: json
+          script: |
+            const versionType = "${{github.event.inputs.releaseType}}"
+            const script = require(`${process.env.GITHUB_WORKSPACE}/.github/workflows/bump-version.js`);
+            script({github, context, versionType, core});
+
+      - name: Build Changelog
+        id: build_changelog
+        uses: mikepenz/release-changelog-builder-action@d1b2107cf2fb79855fdb6bca71dfbda777d300a7 # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          configuration: ".github/changelog-config.json"
+          fromTag: tags/${{steps.create_tag_branch.outputs.semanticVersion}}
+          toTag: tags/${{steps.create_tag_branch.outputs.newSemanticVersion}}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@6034af24fba4e5a8e975aaa6056554efe4c794d0
+        with:
+          body: ${{steps.build_changelog.outputs.changelog}}
+          name: Release v${{steps.create_tag_branch.outputs.newSemanticVersion}}
+          tag_name: ${{steps.create_tag_branch.outputs.newSemanticVersion}}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
