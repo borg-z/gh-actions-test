@@ -43,8 +43,8 @@ module.exports = ({github, context, versionType, core}) => {
                 default:
                     core.setFailed("Could not process the version type. Make sure your string is either 'MAJOR', 'MINOR', or 'PATCH'.");
             }
-            return newSemanticVersion
             console.log('\x1b[32m%s\x1b[0m', `Bumped Semantic Version: ${newSemanticVersion}`);
+            return newSemanticVersion
         } catch (error) {
             core.setFailed(error.message);
         }
