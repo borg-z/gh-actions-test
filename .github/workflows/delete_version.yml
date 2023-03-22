@@ -26,7 +26,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo
             });
-            const release = releases.data.find(r => r.tag_name === version);
+            const release = releases.data.find(r => r.tag_name === version || r.name.includes(version));
             if (release) {
               console.log(`Found release ${version} with ID: ${release.id}`);
               console.log(release);
